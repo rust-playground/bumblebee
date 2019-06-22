@@ -42,21 +42,15 @@ pub(crate) struct Transform {
 impl Rule for Transform {
     fn apply(&self, from: &Value, to: &mut Map<String, Value>) -> Result<()> {
         let field = match &self.source {
-            Source::Direct(id) => {
-                if let Some(obj) = from.as_object() {
-                    obj.get(id).unwrap_or(&Value::Null).clone()
-                } else {
-                    Value::Null
-                }
-            }
+            Source::Direct(id) => match from {
+                Value::Object(obj) => obj.get(id).unwrap_or(&Value::Null).clone(),
+                _ => Value::Null,
+            },
             Source::DirectArray { id, index } => match from {
-                Value::Object(v) => {
-                    if let Some(arr) = v.get(id) {
-                        arr.get(index).unwrap_or(&Value::Null).clone()
-                    } else {
-                        Value::Null
-                    }
-                }
+                Value::Object(v) => match v.get(id) {
+                    Some(arr) => arr.get(index).unwrap_or(&Value::Null).clone(),
+                    _ => Value::Null,
+                },
                 Value::Array(v) => v.get(*index).unwrap_or(&Value::Null).clone(),
                 _ => Value::Null,
             },
@@ -72,18 +66,20 @@ impl Rule for Transform {
                 index,
             } => {
                 let current = get_last(namespace, to);
-                if let Some(v) = current.get_mut(id) {
-                    if let Some(arr) = v.as_array_mut() {
-                        if *index >= arr.len() {
-                            arr.resize_with(*index + 1, Value::default);
+                match current.get_mut(id) {
+                    Some(v) => {
+                        if let Some(arr) = v.as_array_mut() {
+                            if *index >= arr.len() {
+                                arr.resize_with(*index + 1, Value::default);
+                            }
+                            arr[*index] = field;
                         }
-                        arr[*index] = field;
                     }
-                } else {
-                    // new array
-                    let mut new_arr = vec![Value::Null; *index];
-                    new_arr.push(field);
-                    current.insert(id.clone(), Value::Array(new_arr));
+                    _ => {
+                        let mut new_arr = vec![Value::Null; *index];
+                        new_arr.push(field);
+                        current.insert(id.clone(), Value::Array(new_arr));
+                    }
                 }
             }
             Destination::FlattenDirect {
