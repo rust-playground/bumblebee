@@ -1,0 +1,30 @@
+[package]
+authors = ["Dean Karn <dean.karn@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+name = "bumblebee"
+version = "0.1.0"
+description = "Bumblebee is a JSON transformer with simple built in rules that can easily be implemented by even the average user. It is designed to be extensible, simple to use and serializable for easy storage and creation within service and apps."
+repository = "https://github.com/rust-playground/bumblebee"
+
+[badges]
+travis-ci = { repository = "go-playground/bumblebee" }
+
+[[bench]]
+harness = false
+name = "bench"
+
+[dependencies]
+failure = "0.1.5"
+serde_json = "1.0.39"
+typetag = "0.1.3"
+
+[dependencies.serde]
+features = ["derive"]
+version = "1.0.91"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[lib]
+bench = false
