@@ -1,7 +1,7 @@
 # Serde JSON &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
-[Build Status]: https://api.travis-ci.org/serde-rs/bumblebee.svg?branch=master
-[travis]: https://travis-ci.org/go-playground/bumblebee
+[Build Status]: https://api.travis-ci.org/rust-playground/bumblebee.svg?branch=master
+[travis]: https://travis-ci.org/rust-playground/bumblebee
 [Latest Version]: https://img.shields.io/crates/v/bumblebee.svg
 [crates.io]: https://crates.io/crates/bumblebee
 
