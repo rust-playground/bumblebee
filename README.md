@@ -1,6 +1,11 @@
-# Serde JSON &emsp;
+# Serde JSON &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
-** Bumblebee is a JSON transformer with simple built in rules that can easily be implemented by even the average user. It is designed to be extensible, simple to use and serializable for easy storage and creation within service and apps.
+[Build Status]: https://api.travis-ci.org/serde-rs/bumblebee.svg?branch=master
+[travis]: https://travis-ci.org/go-playground/bumblebee
+[Latest Version]: https://img.shields.io/crates/v/bumblebee.svg
+[crates.io]: https://crates.io/crates/bumblebee
+
+**Bumblebee is a JSON transformer with simple built in rules that can easily be implemented by even the average user. It is designed to be extensible, simple to use and serializable for easy storage and creation within service and apps.**
 
 ---
 
@@ -82,6 +87,6 @@ Licensed under either of <a href="LICENSE-APACHE">Apache License, Version
 
 <sub>
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this crate by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+for inclusion in Serde by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
 </sub>
