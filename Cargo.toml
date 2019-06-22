@@ -6,6 +6,8 @@ name = "bumblebee"
 version = "0.1.0"
 description = "Bumblebee is a JSON transformer with simple built in rules that can easily be implemented by even the average user. It is designed to be extensible, simple to use and serializable for easy storage and creation within service and apps."
 repository = "https://github.com/rust-playground/bumblebee"
+readme = "README.md"
+keywords = ["json", "transform", "transformation"]
 
 [badges]
 travis-ci = { repository = "go-playground/bumblebee" }
