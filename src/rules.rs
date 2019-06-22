@@ -112,7 +112,6 @@ impl Rule for Transform {
                 recursive,
                 separator,
             } => {
-                // flattening to array always sets an Object!
                 let current = get_last(namespace, to);
                 match current.get_mut(id) {
                     Some(v) => {
@@ -126,7 +125,6 @@ impl Rule for Transform {
                         }
                     }
                     _ => {
-                        // new array
                         let mut m = Map::new();
                         flatten(&separator, &prefix, &field, &mut m, *recursive);
                         let mut new_arr = vec![Value::Null; *index];
@@ -321,13 +319,12 @@ impl Transform {
         let destination = match field {
             Namespace::Object { id } => {
                 if is_flatten {
-                    let ident = match id.len() {
-                        0 => None,
-                        _ => Some(id),
-                    };
                     Destination::FlattenDirect {
                         namespace: to_namespace,
-                        id: ident,
+                        id: match id.len() {
+                            0 => None,
+                            _ => Some(id),
+                        },
                         prefix: match flatten_prefix {
                             Some(c) => c.to_string(),
                             _ => String::from(""),
