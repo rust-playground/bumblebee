@@ -153,32 +153,62 @@ impl Rule for Transform {
     }
 }
 
-fn flatten_recursive(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
+#[inline]
+fn flatten_recursive_no_id(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
     match from {
         Value::Object(m) => {
             for (k, v) in m {
-                let key = match id.len() {
-                    0 => k.clone(),
-                    _ => id.to_owned() + sep + k,
-                };
                 match v {
-                    Value::Object(_) | Value::Array(_) => flatten_recursive(sep, &key, v, to),
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id(sep, k, v, to),
                     _ => {
-                        to.insert(key, v.clone());
+                        to.insert(k.clone(), v.clone());
                     }
                 };
             }
         }
         Value::Array(arr) => {
             for (i, v) in arr.iter().enumerate() {
-                let key = match id.len() {
-                    0 => (i + 1).to_string(),
-                    _ => id.to_owned() + sep + &(i + 1).to_string(),
-                };
                 match v {
-                    Value::Object(_) | Value::Array(_) => flatten_recursive(sep, &key, v, to),
+                    Value::Object(_) | Value::Array(_) => {
+                        flatten_recursive_with_id(sep, &(i + 1).to_string(), v, to)
+                    }
                     _ => {
-                        to.insert(key, v.clone());
+                        to.insert((i + 1).to_string(), v.clone());
+                    }
+                };
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+fn flatten_recursive_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                match v {
+                    Value::Object(_) | Value::Array(_) => {
+                        flatten_recursive_with_id(sep, &(id.to_owned() + sep + k), v, to)
+                    }
+                    _ => {
+                        to.insert(id.to_owned() + sep + k, v.clone());
+                    }
+                };
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id(
+                        sep,
+                        &(id.to_owned() + sep + &(i + 1).to_string()),
+                        v,
+                        to,
+                    ),
+                    _ => {
+                        to.insert(id.to_owned() + sep + &(i + 1).to_string(), v.clone());
                     }
                 };
             }
@@ -190,28 +220,35 @@ fn flatten_recursive(sep: &str, id: &str, from: &Value, to: &mut Map<String, Val
 }
 
 #[inline]
-fn flatten_single_level(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
+fn flatten_single_level_no_id(id: &str, from: &Value, to: &mut Map<String, Value>) {
     match from {
         Value::Object(m) => {
             for (k, v) in m {
-                to.insert(
-                    match id.len() {
-                        0 => k.clone(),
-                        _ => id.to_owned() + sep + k,
-                    },
-                    v.clone(),
-                );
+                to.insert(k.clone(), v.clone());
             }
         }
         Value::Array(arr) => {
             for (i, v) in arr.iter().enumerate() {
-                to.insert(
-                    match id.len() {
-                        0 => (i + 1).to_string(),
-                        _ => id.to_owned() + sep + &(i + 1).to_string(),
-                    },
-                    v.clone(),
-                );
+                to.insert((i + 1).to_string(), v.clone());
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+#[inline]
+fn flatten_single_level_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                to.insert(id.to_owned() + sep + k, v.clone());
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                to.insert(id.to_owned() + sep + &(i + 1).to_string(), v.clone());
             }
         }
         _ => {
@@ -223,9 +260,15 @@ fn flatten_single_level(sep: &str, id: &str, from: &Value, to: &mut Map<String, 
 #[inline]
 fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recursive: bool) {
     if recursive {
-        flatten_recursive(sep, id, from, to)
+        match id.len() {
+            0 => flatten_recursive_no_id(sep, id, from, to),
+            _ => flatten_recursive_with_id(sep, id, from, to),
+        };
     } else {
-        flatten_single_level(sep, id, from, to)
+        match id.len() {
+            0 => flatten_single_level_no_id(id, from, to),
+            _ => flatten_single_level_with_id(sep, id, from, to),
+        }
     }
 }
 
