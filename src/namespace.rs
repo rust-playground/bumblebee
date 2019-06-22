@@ -62,10 +62,10 @@ impl Namespace {
     {
         input
             .into()
-            .split(".")
-            .flat_map(|s| s.split_terminator("]"))
+            .split('.')
+            .flat_map(|s| s.split_terminator(']'))
             .map(|v| {
-                if let Some(idx) = v.find("[") {
+                if let Some(idx) = v.find('[') {
                     Ok(Namespace::Array {
                         id: v[..idx].to_string(),
                         index: v[idx + 1..].parse()?,

@@ -164,7 +164,7 @@ fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recur
             for (k, v) in m {
                 let key = match id.len() {
                     0 => k.clone(),
-                    _ => id.to_owned() + sep.clone() + k,
+                    _ => id.to_owned() + sep + k,
                 };
                 match v {
                     Value::Object(_) | Value::Array(_) => {
@@ -184,7 +184,7 @@ fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recur
             for (i, v) in arr.iter().enumerate() {
                 let key = match id.len() {
                     0 => (i + 1).to_string(),
-                    _ => id.to_owned() + sep.clone() + &(i + 1).to_string(),
+                    _ => id.to_owned() + sep + &(i + 1).to_string(),
                 };
                 match v {
                     Value::Object(_) | Value::Array(_) => {
@@ -254,17 +254,16 @@ impl Transform {
                 }
             }
         };
-        let field;
-        if is_flatten {
+        let field = if is_flatten {
             // for flatten it's ok NOT to have a namespace
-            field = to_namespace.pop().unwrap_or_else(|| Namespace::Object {
+            to_namespace.pop().unwrap_or_else(|| Namespace::Object {
                 id: String::from(""),
-            });
+            })
         } else {
-            field = to_namespace.pop().ok_or_else(|| {
+            to_namespace.pop().ok_or_else(|| {
                 Error::InvalidNamespace(String::from("No field defined for namespace"))
-            })?;
-        }
+            })?
+        };
 
         let destination = match field {
             Namespace::Object { id } => {

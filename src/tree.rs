@@ -9,13 +9,13 @@ pub(crate) enum Node {
     Object {
         id: String,
         children: Option<(usize, usize)>, // start + end tuple
-        rules: Option<Vec<Box<Rule>>>,
+        rules: Option<Vec<Box<dyn Rule>>>,
     },
     Array {
         index: usize,
         id: String,
         children: Option<(usize, usize)>, // start + end tuple
-        rules: Option<Vec<Box<Rule>>>,
+        rules: Option<Vec<Box<dyn Rule>>>,
     },
 }
 
@@ -84,7 +84,7 @@ impl Arena {
                             }
                             Namespace::Array { id, index } => {
                                 let new_node = Node::Array {
-                                    index: index.clone(),
+                                    index: *index,
                                     id: id.clone(),
                                     children: None,
                                     rules: None,
@@ -109,7 +109,7 @@ impl Arena {
                         }
                         Namespace::Array { id, index } => {
                             let new_node = Node::Array {
-                                index: index.clone(),
+                                index: *index,
                                 id: id.clone(),
                                 children: None,
                                 rules: None,
@@ -157,7 +157,7 @@ impl Arena {
                             }
                             Namespace::Array { id, index } => {
                                 let new_node = Node::Array {
-                                    index: index.clone(),
+                                    index: *index,
                                     id: id.clone(),
                                     children: None,
                                     rules: None,
@@ -181,7 +181,7 @@ impl Arena {
                         }
                         Namespace::Array { id, index } => {
                             let new_node = Node::Array {
-                                index: index.clone(),
+                                index: *index,
                                 id: id.clone(),
                                 children: None,
                                 rules: None,
@@ -215,16 +215,16 @@ impl Arena {
                 Node::Object { children, .. } => {
                     if let Some((start, end)) = children {
                         if *start >= index {
-                            *start = *start + 1;
-                            *end = *end + 1;
+                            *start += 1;
+                            *end += 1;
                         }
                     }
                 }
                 Node::Array { children, .. } => {
                     if let Some((start, end)) = children {
                         if *start >= index {
-                            *start = *start + 1;
-                            *end = *end + 1;
+                            *start += 1;
+                            *end += 1;
                         }
                     }
                 }
@@ -241,13 +241,13 @@ impl Arena {
             match self.tree.get_mut(idx).unwrap() {
                 Node::Object { children, .. } => match children {
                     Some((_, end)) => {
-                        *end = *end + 1;
+                        *end += 1;
                     }
                     None => *children = Some((index, index)),
                 },
                 Node::Array { children, .. } => match children {
                     Some((_, end)) => {
-                        *end = *end + 1;
+                        *end += 1;
                     }
                     None => *children = Some((index, index)),
                 },

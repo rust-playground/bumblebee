@@ -3,7 +3,6 @@ extern crate criterion;
 
 use bumblebee::transformer::TransformerBuilder;
 use criterion::{Benchmark, Criterion, Throughput};
-use serde_json::Value;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let trans = TransformerBuilder::default()

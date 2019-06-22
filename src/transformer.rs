@@ -202,46 +202,8 @@ fn transform_recursive(
     match node {
         Node::Object {
             rules, children, ..
-        } => {
-            if let Some(rulz) = rules {
-                for rule in rulz {
-                    rule.apply(source, dest)?;
-                }
-            }
-            if let Some((start, end)) = children {
-                for idx in *start..=*end {
-                    if let Some(n) = arena.tree.get(idx) {
-                        match n {
-                            Node::Object { id, .. } => {
-                                // if we find the source value
-                                if let Some(current_level) = source.get(id.as_str()) {
-                                    transform_recursive(arena, n, current_level, dest)?;
-                                }
-                            }
-                            Node::Array { id, index, .. } => {
-                                // may be array of array already without id eg. arr[0][0]
-                                if id != "" {
-                                    if let Some(current_level) = source.get(id.as_str()) {
-                                        if let Some(arr) = current_level.as_array() {
-                                            if let Some(v) = arr.get(*index) {
-                                                transform_recursive(arena, n, v, dest)?;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if let Some(arr) = source.as_array() {
-                                        if let Some(v) = arr.get(*index) {
-                                            transform_recursive(arena, n, v, dest)?;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
-        Node::Array {
+        | Node::Array {
             rules, children, ..
         } => {
             if let Some(rulz) = rules {
@@ -269,11 +231,9 @@ fn transform_recursive(
                                             }
                                         }
                                     }
-                                } else {
-                                    if let Some(arr) = source.as_array() {
-                                        if let Some(v) = arr.get(*index) {
-                                            transform_recursive(arena, n, v, dest)?;
-                                        }
+                                } else if let Some(arr) = source.as_array() {
+                                    if let Some(v) = arr.get(*index) {
+                                        transform_recursive(arena, n, v, dest)?;
                                     }
                                 }
                             }
