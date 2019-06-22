@@ -88,26 +88,22 @@ impl Rule for Transform {
                 recursive,
                 prefix,
                 separator,
-            } => {
-                let p = match prefix {
-                    Some(v) => v.clone(),
-                    _ => String::from(""),
-                };
-                let s = match separator {
-                    Some(v) => v.clone(),
-                    _ => String::from(""),
-                };
-                match id {
-                    Some(id) => {
-                        let mut m = Map::new();
-                        flatten(&s, &p, &field, &mut m, *recursive);
-                        get_last(namespace, to).insert(id.clone(), Value::Object(m));
-                    }
-                    None => {
-                        flatten(&s, &p, &field, get_last(namespace, to), *recursive);
-                    }
+            } => match id {
+                Some(id) => {
+                    let mut m = Map::new();
+                    flatten(&separator, &prefix, &field, &mut m, *recursive);
+                    get_last(namespace, to).insert(id.clone(), Value::Object(m));
                 }
-            }
+                None => {
+                    flatten(
+                        &separator,
+                        &prefix,
+                        &field,
+                        get_last(namespace, to),
+                        *recursive,
+                    );
+                }
+            },
             Destination::FlattenArray {
                 id,
                 namespace,
@@ -116,32 +112,27 @@ impl Rule for Transform {
                 recursive,
                 separator,
             } => {
-                let p = match prefix {
-                    Some(v) => v.clone(),
-                    _ => String::from(""),
-                };
-                let s = match separator {
-                    Some(v) => v.clone(),
-                    _ => String::from(""),
-                };
                 // flattening to array always sets an Object!
                 let current = get_last(namespace, to);
-                if let Some(v) = current.get_mut(id) {
-                    if let Some(arr) = v.as_array_mut() {
-                        if *index >= arr.len() {
-                            arr.resize_with(*index + 1, Value::default);
+                match current.get_mut(id) {
+                    Some(v) => {
+                        if let Some(arr) = v.as_array_mut() {
+                            if *index >= arr.len() {
+                                arr.resize_with(*index + 1, Value::default);
+                            }
+                            let mut m = Map::new();
+                            flatten(&separator, &prefix, &field, &mut m, *recursive);
+                            arr[*index] = Value::Object(m);
                         }
-                        let mut m = Map::new();
-                        flatten(&s, &p, &field, &mut m, *recursive);
-                        arr[*index] = Value::Object(m);
                     }
-                } else {
-                    // new array
-                    let mut m = Map::new();
-                    flatten(&s, &p, &field, &mut m, *recursive);
-                    let mut new_arr = vec![Value::Null; *index];
-                    new_arr.push(Value::Object(m));
-                    current.insert(id.clone(), Value::Array(new_arr));
+                    _ => {
+                        // new array
+                        let mut m = Map::new();
+                        flatten(&separator, &prefix, &field, &mut m, *recursive);
+                        let mut new_arr = vec![Value::Null; *index];
+                        new_arr.push(Value::Object(m));
+                        current.insert(id.clone(), Value::Array(new_arr));
+                    }
                 }
             }
         }
@@ -330,14 +321,6 @@ impl Transform {
         let destination = match field {
             Namespace::Object { id } => {
                 if is_flatten {
-                    let p = match flatten_prefix {
-                        Some(c) => Some(c.to_string()),
-                        _ => None,
-                    };
-                    let s = match sep {
-                        Some(c) => Some(c.to_string()),
-                        _ => None,
-                    };
                     let ident = match id.len() {
                         0 => None,
                         _ => Some(id),
@@ -345,8 +328,14 @@ impl Transform {
                     Destination::FlattenDirect {
                         namespace: to_namespace,
                         id: ident,
-                        prefix: p,
-                        separator: s,
+                        prefix: match flatten_prefix {
+                            Some(c) => c.to_string(),
+                            _ => String::from(""),
+                        },
+                        separator: match sep {
+                            Some(c) => c.to_string(),
+                            _ => String::from(""),
+                        },
                         recursive: is_recursive,
                     }
                 } else {
@@ -358,19 +347,17 @@ impl Transform {
             }
             Namespace::Array { id, index } => {
                 if is_flatten {
-                    let p = match flatten_prefix {
-                        Some(c) => Some(c.to_string()),
-                        _ => None,
-                    };
-                    let s = match sep {
-                        Some(c) => Some(c.to_string()),
-                        _ => None,
-                    };
                     Destination::FlattenArray {
                         namespace: to_namespace,
                         id,
-                        prefix: p,
-                        separator: s,
+                        prefix: match flatten_prefix {
+                            Some(c) => c.to_string(),
+                            _ => String::from(""),
+                        },
+                        separator: match sep {
+                            Some(c) => c.to_string(),
+                            _ => String::from(""),
+                        },
                         index,
                         recursive: is_recursive,
                     }
@@ -440,15 +427,15 @@ pub(crate) enum Destination {
     FlattenDirect {
         namespace: Vec<Namespace>,
         id: Option<String>,
-        prefix: Option<String>,
-        separator: Option<String>,
+        prefix: String,
+        separator: String,
         recursive: bool,
     },
     FlattenArray {
         namespace: Vec<Namespace>,
         id: String,
-        prefix: Option<String>,
-        separator: Option<String>,
+        prefix: String,
+        separator: String,
         index: usize,
         recursive: bool,
     },
