@@ -41,10 +41,6 @@ pub(crate) struct Transform {
 #[typetag::serde]
 impl Rule for Transform {
     fn apply(&self, from: &Value, to: &mut Map<String, Value>) -> Result<()> {
-        // when no value is found setting null
-        // TODO: think about if we want to set null, returns error or just opt out.
-        // thinking adding a required value to the from's would error and opt-out otherwise.
-
         let field = match &self.source {
             Source::Direct(id) => {
                 if let Some(obj) = from.as_object() {
@@ -157,64 +153,79 @@ impl Rule for Transform {
     }
 }
 
-#[inline]
-fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recursive: bool) {
+fn flatten_recursive(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
     match from {
         Value::Object(m) => {
-            if recursive {
-                for (k, v) in m {
-                    let key = match id.len() {
-                        0 => k.clone(),
-                        _ => id.to_owned() + sep + k,
-                    };
-                    match v {
-                        Value::Object(_) | Value::Array(_) => flatten(sep, &key, v, to, recursive),
-                        _ => {
-                            to.insert(key, v.clone());
-                        }
-                    };
-                }
-            } else {
-                for (k, v) in m {
-                    to.insert(
-                        match id.len() {
-                            0 => k.clone(),
-                            _ => id.to_owned() + sep + k,
-                        },
-                        v.clone(),
-                    );
-                }
+            for (k, v) in m {
+                let key = match id.len() {
+                    0 => k.clone(),
+                    _ => id.to_owned() + sep + k,
+                };
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive(sep, &key, v, to),
+                    _ => {
+                        to.insert(key, v.clone());
+                    }
+                };
             }
         }
         Value::Array(arr) => {
-            if recursive {
-                for (i, v) in arr.iter().enumerate() {
-                    let key = match id.len() {
-                        0 => (i + 1).to_string(),
-                        _ => id.to_owned() + sep + &(i + 1).to_string(),
-                    };
-                    match v {
-                        Value::Object(_) | Value::Array(_) => flatten(sep, &key, v, to, recursive),
-                        _ => {
-                            to.insert(key, v.clone());
-                        }
-                    };
-                }
-            } else {
-                for (i, v) in arr.iter().enumerate() {
-                    to.insert(
-                        match id.len() {
-                            0 => (i + 1).to_string(),
-                            _ => id.to_owned() + sep + &(i + 1).to_string(),
-                        },
-                        v.clone(),
-                    );
-                }
+            for (i, v) in arr.iter().enumerate() {
+                let key = match id.len() {
+                    0 => (i + 1).to_string(),
+                    _ => id.to_owned() + sep + &(i + 1).to_string(),
+                };
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive(sep, &key, v, to),
+                    _ => {
+                        to.insert(key, v.clone());
+                    }
+                };
             }
         }
         _ => {
             to.insert(id.to_owned(), from.clone());
         }
+    }
+}
+
+#[inline]
+fn flatten_single_level(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                to.insert(
+                    match id.len() {
+                        0 => k.clone(),
+                        _ => id.to_owned() + sep + k,
+                    },
+                    v.clone(),
+                );
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                to.insert(
+                    match id.len() {
+                        0 => (i + 1).to_string(),
+                        _ => id.to_owned() + sep + &(i + 1).to_string(),
+                    },
+                    v.clone(),
+                );
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+#[inline]
+fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recursive: bool) {
+    if recursive {
+        flatten_recursive(sep, id, from, to)
+    } else {
+        flatten_single_level(sep, id, from, to)
     }
 }
 
@@ -352,14 +363,14 @@ fn get_last<'a>(
         match ns {
             Namespace::Object { id } => {
                 current = current
-                    .entry(id.clone()) // TODO: optimize later
+                    .entry(id.clone())
                     .or_insert(Value::Object(Map::new()))
                     .as_object_mut()
                     .unwrap();
             }
             Namespace::Array { id, index } => {
                 current = current
-                    .entry(id.clone()) // TODO: optimize later
+                    .entry(id.clone())
                     .or_insert(Value::Array(vec![Value::Null; *index]))
                     .as_object_mut()
                     .unwrap();
