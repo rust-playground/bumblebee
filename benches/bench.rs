@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate criterion;
 
-use bumblebee::transformer::TransformerBuilder;
+use bumblebee::prelude::*;
 use criterion::{Benchmark, Criterion, Throughput};
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -129,7 +129,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     );
 
     let trans = TransformerBuilder::default()
-        .add_flatten("nested", "", Some("new"), Some("_"), false)
+        .add_flatten(
+            "nested",
+            "",
+            FlattenOps {
+                recursive: false,
+                prefix: Some("new"),
+                separator: Some("_"),
+                manipulation: None,
+            },
+        )
         .unwrap()
         .build()
         .unwrap();
@@ -155,7 +164,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     );
 
     let trans = TransformerBuilder::default()
-        .add_flatten("nested", "", None, Some("_"), false)
+        .add_flatten(
+            "nested",
+            "",
+            FlattenOps {
+                recursive: false,
+                prefix: None,
+                separator: Some("_"),
+                manipulation: None,
+            },
+        )
         .unwrap()
         .build()
         .unwrap();

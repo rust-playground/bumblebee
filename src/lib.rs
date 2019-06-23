@@ -8,14 +8,23 @@
 //! the output.
 //!
 //! ```rust
-//! use bumblebee::transformer::TransformerBuilder;
+//! use bumblebee::prelude::*;
 //! use bumblebee::errors::Result;
 //!
 //! fn test_example() -> Result<()> {
 //!       let trans = TransformerBuilder::default()
 //!         .add_direct("user_id", "id")?
 //!         .add_direct("full-name", "name")?
-//!         .add_flatten("nicknames", "", Some("nickname"), Some("_"), true)?
+//!         .add_flatten(
+//!                "nicknames",
+//!                "",
+//!                FlattenOps {
+//!                    recursive: true,
+//!                    prefix: Some("nickname"),
+//!                    separator: Some("_"),
+//!                    manipulation: None,
+//!                },
+//!            )?
 //!         .add_direct("nested.inner.key", "prev_nested")?
 //!         .add_direct("nested.my_arr[1]", "prev_arr")?
 //!         .build()?;
@@ -41,7 +50,7 @@
 //! or direct from struct to struct
 //!
 //! ```rust
-//! use bumblebee::transformer::TransformerBuilder;
+//! use bumblebee::prelude::*;
 //! use bumblebee::errors::Result;
 //! use serde::{Serialize, Deserialize};
 //!
@@ -78,3 +87,8 @@ pub mod namespace;
 pub mod rules;
 pub mod transformer;
 mod tree;
+
+pub mod prelude {
+    pub use crate::rules::FlattenOps;
+    pub use crate::transformer::TransformerBuilder;
+}
