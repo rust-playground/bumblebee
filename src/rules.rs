@@ -10,6 +10,19 @@ pub trait Rule: Debug {
     fn apply(&self, from: &Value, to: &mut Map<String, Value>) -> Result<()>;
 }
 
+#[typetag::serde]
+pub trait StringManipulation: Debug {
+    fn apply(&self, input: &str) -> String;
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct FlattenOps<'a> {
+    pub recursive: bool,
+    pub prefix: Option<&'a str>,
+    pub separator: Option<&'a str>,
+    pub manipulation: Option<Box<StringManipulation>>,
+}
+
 ///
 /// Mapping is the type of transformation we will be attempting
 ///
@@ -28,11 +41,12 @@ pub enum Mapping<'a> {
         to: Cow<'a, str>,
         prefix: Option<Cow<'a, str>>,
         separator: Option<Cow<'a, str>>,
+        manipulation: Option<Box<StringManipulation>>,
         recursive: bool,
     },
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Transform {
     source: Source,
     destination: Destination,
@@ -87,15 +101,24 @@ impl Rule for Transform {
                 namespace,
                 recursive,
                 prefix,
+                manipulation,
                 separator,
             } => match id {
                 Some(id) => {
                     let mut m = Map::new();
-                    flatten(&separator, &prefix, &field, &mut m, *recursive);
+                    flatten(
+                        &manipulation,
+                        &separator,
+                        &prefix,
+                        &field,
+                        &mut m,
+                        *recursive,
+                    );
                     get_last(namespace, to).insert(id.clone(), Value::Object(m));
                 }
                 None => {
                     flatten(
+                        &manipulation,
                         &separator,
                         &prefix,
                         &field,
@@ -108,6 +131,7 @@ impl Rule for Transform {
                 id,
                 namespace,
                 prefix,
+                manipulation,
                 index,
                 recursive,
                 separator,
@@ -120,13 +144,27 @@ impl Rule for Transform {
                                 arr.resize_with(*index + 1, Value::default);
                             }
                             let mut m = Map::new();
-                            flatten(&separator, &prefix, &field, &mut m, *recursive);
+                            flatten(
+                                &manipulation,
+                                &separator,
+                                &prefix,
+                                &field,
+                                &mut m,
+                                *recursive,
+                            );
                             arr[*index] = Value::Object(m);
                         }
                     }
                     _ => {
                         let mut m = Map::new();
-                        flatten(&separator, &prefix, &field, &mut m, *recursive);
+                        flatten(
+                            &manipulation,
+                            &separator,
+                            &prefix,
+                            &field,
+                            &mut m,
+                            *recursive,
+                        );
                         let mut new_arr = vec![Value::Null; *index];
                         new_arr.push(Value::Object(m));
                         current.insert(id.clone(), Value::Array(new_arr));
@@ -169,6 +207,53 @@ fn flatten_recursive_no_id(sep: &str, id: &str, from: &Value, to: &mut Map<Strin
     }
 }
 
+#[inline]
+fn flatten_recursive_no_id_manipulation(
+    manipulation: &Box<StringManipulation>,
+    sep: &str,
+    id: &str,
+    from: &Value,
+    to: &mut Map<String, Value>,
+) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id_manipulation(
+                        manipulation,
+                        sep,
+                        &manipulation.apply(k),
+                        v,
+                        to,
+                    ),
+                    _ => {
+                        to.insert(manipulation.apply(k), v.clone());
+                    }
+                };
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id_manipulation(
+                        manipulation,
+                        sep,
+                        &(i + 1).to_string(),
+                        v,
+                        to,
+                    ),
+                    _ => {
+                        to.insert((i + 1).to_string(), v.clone());
+                    }
+                };
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
 fn flatten_recursive_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>) {
     match from {
         Value::Object(m) => {
@@ -179,6 +264,50 @@ fn flatten_recursive_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<Str
                     }
                     _ => {
                         to.insert(id.to_owned() + sep + k, v.clone());
+                    }
+                };
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id(
+                        sep,
+                        &(id.to_owned() + sep + &(i + 1).to_string()),
+                        v,
+                        to,
+                    ),
+                    _ => {
+                        to.insert(id.to_owned() + sep + &(i + 1).to_string(), v.clone());
+                    }
+                };
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+fn flatten_recursive_with_id_manipulation(
+    manipulation: &Box<StringManipulation>,
+    sep: &str,
+    id: &str,
+    from: &Value,
+    to: &mut Map<String, Value>,
+) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                match v {
+                    Value::Object(_) | Value::Array(_) => flatten_recursive_with_id(
+                        sep,
+                        &(id.to_owned() + sep + &manipulation.apply(k)),
+                        v,
+                        to,
+                    ),
+                    _ => {
+                        to.insert(id.to_owned() + sep + &manipulation.apply(k), v.clone());
                     }
                 };
             }
@@ -243,17 +372,85 @@ fn flatten_single_level_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<
 }
 
 #[inline]
-fn flatten(sep: &str, id: &str, from: &Value, to: &mut Map<String, Value>, recursive: bool) {
+fn flatten_single_level_no_id_manipulation(
+    manipulation: &Box<StringManipulation>,
+    id: &str,
+    from: &Value,
+    to: &mut Map<String, Value>,
+) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                to.insert(manipulation.apply(k), v.clone());
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                to.insert((i + 1).to_string(), v.clone());
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+#[inline]
+fn flatten_single_level_with_id_manipulation(
+    manipulation: &Box<StringManipulation>,
+    sep: &str,
+    id: &str,
+    from: &Value,
+    to: &mut Map<String, Value>,
+) {
+    match from {
+        Value::Object(m) => {
+            for (k, v) in m {
+                to.insert(id.to_owned() + sep + &manipulation.apply(k), v.clone());
+            }
+        }
+        Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                to.insert(id.to_owned() + sep + &(i + 1).to_string(), v.clone());
+            }
+        }
+        _ => {
+            to.insert(id.to_owned(), from.clone());
+        }
+    }
+}
+
+#[inline]
+fn flatten(
+    manipulation: &Option<Box<StringManipulation>>,
+    sep: &str,
+    id: &str,
+    from: &Value,
+    to: &mut Map<String, Value>,
+    recursive: bool,
+) {
     if recursive {
-        match id.len() {
-            0 => flatten_recursive_no_id(sep, id, from, to),
-            _ => flatten_recursive_with_id(sep, id, from, to),
+        match manipulation {
+            Some(man) => match id.len() {
+                0 => flatten_recursive_no_id_manipulation(man, sep, id, from, to),
+                _ => flatten_recursive_with_id_manipulation(man, sep, id, from, to),
+            },
+            None => match id.len() {
+                0 => flatten_recursive_no_id(sep, id, from, to),
+                _ => flatten_recursive_with_id(sep, id, from, to),
+            },
         };
     } else {
-        match id.len() {
-            0 => flatten_single_level_no_id(id, from, to),
-            _ => flatten_single_level_with_id(sep, id, from, to),
-        }
+        match manipulation {
+            Some(man) => match id.len() {
+                0 => flatten_single_level_no_id_manipulation(man, id, from, to),
+                _ => flatten_single_level_with_id_manipulation(man, sep, id, from, to),
+            },
+            None => match id.len() {
+                0 => flatten_single_level_no_id(id, from, to),
+                _ => flatten_single_level_with_id(sep, id, from, to),
+            },
+        };
     }
 }
 
@@ -265,6 +462,7 @@ impl Transform {
         let mut is_recursive = false;
         let mut flatten_prefix = None;
         let mut sep = None;
+        let mut manip = None;
 
         let source = match mapping {
             Mapping::Direct { from, to } => {
@@ -287,6 +485,7 @@ impl Transform {
                 from,
                 to,
                 prefix,
+                manipulation,
                 recursive,
                 separator,
             } => {
@@ -294,6 +493,7 @@ impl Transform {
                 is_recursive = recursive;
                 flatten_prefix = prefix;
                 sep = separator;
+                manip = manipulation;
                 from_namespace = Namespace::parse(from)?;
                 to_namespace = Namespace::parse(to)?;
                 let field = from_namespace.pop().ok_or_else(|| {
@@ -333,6 +533,7 @@ impl Transform {
                             Some(c) => c.to_string(),
                             _ => String::from(""),
                         },
+                        manipulation: manip,
                         recursive: is_recursive,
                     }
                 } else {
@@ -356,6 +557,7 @@ impl Transform {
                             _ => String::from(""),
                         },
                         index,
+                        manipulation: manip,
                         recursive: is_recursive,
                     }
                 } else {
@@ -410,7 +612,7 @@ pub(crate) enum Source {
     Constant(Value),
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) enum Destination {
     Direct {
         namespace: Vec<Namespace>,
@@ -426,6 +628,7 @@ pub(crate) enum Destination {
         id: Option<String>,
         prefix: String,
         separator: String,
+        manipulation: Option<Box<StringManipulation>>,
         recursive: bool,
     },
     FlattenArray {
@@ -433,6 +636,7 @@ pub(crate) enum Destination {
         id: String,
         prefix: String,
         separator: String,
+        manipulation: Option<Box<StringManipulation>>,
         index: usize,
         recursive: bool,
     },

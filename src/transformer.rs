@@ -1,6 +1,6 @@
 use crate::errors::Result;
 use crate::namespace::Namespace;
-use crate::rules::{Mapping, Rule, Transform};
+use crate::rules::{FlattenOps, Mapping, Rule, Transform};
 use crate::tree::{Arena, Node};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -97,31 +97,26 @@ impl TransformerBuilder {
     /// adds a mapping which takes the existing value, either Object or Array, and flattens the data
     /// and places that at the desired output location.
     #[inline]
-    pub fn add_flatten<'a, S>(
-        self,
-        from: S,
-        to: S,
-        prefix: Option<S>,
-        separator: Option<S>,
-        recursive: bool,
-    ) -> Result<Self>
+    pub fn add_flatten<'a, S>(self, from: S, to: S, options: FlattenOps) -> Result<Self>
     where
         S: Into<Cow<'a, str>>,
     {
-        let p = match prefix {
-            Some(v) => Some(v.into()),
-            None => None,
-        };
-        let s = match separator {
-            Some(v) => Some(v.into()),
-            None => None,
-        };
         self.add_mapping(Mapping::Flatten {
             from: from.into(),
             to: to.into(),
-            prefix: p,
-            separator: s,
-            recursive,
+            prefix: match options.prefix {
+                Some(v) => Some(v.into()),
+                None => None,
+            },
+            separator: match options.separator {
+                Some(v) => Some(v.into()),
+                None => None,
+            },
+            manipulation: match options.manipulation {
+                Some(v) => Some(v.into()),
+                None => None,
+            },
+            recursive: options.recursive,
         })
     }
 
@@ -249,6 +244,7 @@ fn transform_recursive(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rules::StringManipulation;
     use serde::Deserialize;
 
     #[test]
@@ -432,8 +428,16 @@ mod tests {
     #[test]
     fn test_flatten_direct() -> Result<()> {
         let trans = TransformerBuilder::default()
-            //            .add_direct("nested.key1", "flattened.new")?
-            .add_flatten("nested", "", Some("flattened_"), None, false)?
+            .add_flatten(
+                "nested",
+                "",
+                FlattenOps {
+                    recursive: false,
+                    prefix: Some("flattened_"),
+                    separator: None,
+                    manipulation: None,
+                },
+            )?
             .build()?;
         let input = r#"{
                 "nested":{
@@ -450,8 +454,16 @@ mod tests {
     #[test]
     fn test_flatten_direct_with_to() -> Result<()> {
         let trans = TransformerBuilder::default()
-            //            .add_direct("nested.key1", "flattened.new")?
-            .add_flatten("nested", "flattened", Some("flattened_"), None, false)?
+            .add_flatten(
+                "nested",
+                "flattened",
+                FlattenOps {
+                    recursive: false,
+                    prefix: Some("flattened_"),
+                    separator: None,
+                    manipulation: None,
+                },
+            )?
             .build()?;
         let input = r#"{
                 "nested":{
@@ -467,8 +479,7 @@ mod tests {
     #[test]
     fn test_flatten_direct_with_to_no_profix() -> Result<()> {
         let trans = TransformerBuilder::default()
-            //            .add_direct("nested.key1", "flattened.new")?
-            .add_flatten("nested", "flattened", None, None, false)?
+            .add_flatten("nested", "flattened", FlattenOps::default())?
             .build()?;
         let input = r#"{
                 "nested":{
@@ -485,7 +496,16 @@ mod tests {
     #[test]
     fn test_flatten_direct_recursive_with_to_no_prefix() -> Result<()> {
         let trans = TransformerBuilder::default()
-            .add_flatten("nested", "", None, Some("_"), true)?
+            .add_flatten(
+                "nested",
+                "",
+                FlattenOps {
+                    recursive: true,
+                    prefix: None,
+                    separator: Some("_"),
+                    manipulation: None,
+                },
+            )?
             .build()?;
         let input = r#"{
             "nested":{
@@ -504,7 +524,7 @@ mod tests {
     #[test]
     fn test_flatten_direct_nonrecursive_with_to_no_prefix() -> Result<()> {
         let trans = TransformerBuilder::default()
-            .add_flatten("nested", "", None, None, false)?
+            .add_flatten("nested", "", FlattenOps::default())?
             .build()?;
         let input = r#"{
             "nested":{
@@ -523,7 +543,16 @@ mod tests {
     #[test]
     fn test_array_flatten() -> Result<()> {
         let trans = TransformerBuilder::default()
-            .add_flatten("nested", "", Some("new"), Some("_"), false)?
+            .add_flatten(
+                "nested",
+                "",
+                FlattenOps {
+                    recursive: false,
+                    prefix: Some("new"),
+                    separator: Some("_"),
+                    manipulation: None,
+                },
+            )?
             .build()?;
         let input = r#"{
             "nested":[
@@ -541,7 +570,16 @@ mod tests {
     #[test]
     fn test_array_flatten_to() -> Result<()> {
         let trans = TransformerBuilder::default()
-            .add_flatten("nested", "flattened[1]", Some("new"), Some("_"), false)?
+            .add_flatten(
+                "nested",
+                "flattened[1]",
+                FlattenOps {
+                    recursive: false,
+                    prefix: Some("new"),
+                    separator: Some("_"),
+                    manipulation: None,
+                },
+            )?
             .build()?;
         let input = r#"{
             "nested":[
@@ -562,7 +600,16 @@ mod tests {
         let trans = TransformerBuilder::default()
             .add_direct("user_id", "id")?
             .add_direct("full-name", "name")?
-            .add_flatten("nicknames", "", Some("nickname"), Some("_"), true)?
+            .add_flatten(
+                "nicknames",
+                "",
+                FlattenOps {
+                    recursive: true,
+                    prefix: Some("nickname"),
+                    separator: Some("_"),
+                    manipulation: None,
+                },
+            )?
             .add_direct("nested.inner.key", "prev_nested")?
             .add_direct("nested.my_arr[1]", "prev_arr")?
             .build()?;
@@ -582,6 +629,42 @@ mod tests {
         let expected = r#"{"id":"111","name":"Dean Karn","nickname_1":"Deano","nickname_2":"Joey Bloggs","prev_arr":"arr_value","prev_nested":"value"}"#;
         let res = trans.apply_from_str(input)?;
         assert_eq!(expected, serde_json::to_string(&res)?);
+        Ok(())
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct ManipDashRemover {}
+
+    #[typetag::serde]
+    impl StringManipulation for ManipDashRemover {
+        fn apply(&self, input: &str) -> String {
+            input.replace('-', "")
+        }
+    }
+
+    #[test]
+    fn test_flatten_direct_with_maipulation() -> Result<()> {
+        let trans = TransformerBuilder::default()
+            .add_flatten(
+                "nested",
+                "",
+                FlattenOps {
+                    manipulation: Some(Box::new(ManipDashRemover {})),
+                    ..FlattenOps::default()
+                },
+            )?
+            .build()?;
+        let input = r#"{
+            "nested":{
+                "key-1":"value1",
+                "key-2":{
+                    "inner":"value2"
+                }
+            }
+        }"#;
+        let expected = r#"{"key1":"value1","key2":{"inner":"value2"}}"#;
+        let res = trans.apply_from_str(input)?;
+        assert_eq!(expected, res.to_string());
         Ok(())
     }
 }

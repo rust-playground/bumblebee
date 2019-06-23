@@ -16,14 +16,22 @@ bumblebee = "0.1"
 
 ## Example usages
 ```rust
-use bumblebee::transformer::TransformerBuilder;
+use bumblebee::prelude::*;
 use bumblebee::errors::Result;
-
 fn test_example() -> Result<()> {
       let trans = TransformerBuilder::default()
         .add_direct("user_id", "id")?
         .add_direct("full-name", "name")?
-        .add_flatten("nicknames", "", Some("nickname"), Some("_"), true)?
+        .add_flatten(
+               "nicknames",
+               "",
+               FlattenOps {
+                   recursive: true,
+                   prefix: Some("nickname"),
+                   separator: Some("_"),
+                   manipulation: None,
+               },
+           )?
         .add_direct("nested.inner.key", "prev_nested")?
         .add_direct("nested.my_arr[1]", "prev_arr")?
         .build()?;
@@ -49,7 +57,7 @@ fn test_example() -> Result<()> {
 or when you want to do struct to struct transformations
 
 ```rust
-use bumblebee::transformer::TransformerBuilder;
+use bumblebee::prelude::*;
 use bumblebee::errors::Result;
 use serde::{Serialize, Deserialize};
 fn test_struct() -> Result<()> {
