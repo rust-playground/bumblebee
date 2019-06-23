@@ -209,7 +209,7 @@ fn flatten_recursive_no_id(sep: &str, id: &str, from: &Value, to: &mut Map<Strin
 
 #[inline]
 fn flatten_recursive_no_id_manipulation(
-    manipulation: &Box<StringManipulation>,
+    manipulation: &StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -290,7 +290,7 @@ fn flatten_recursive_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<Str
 }
 
 fn flatten_recursive_with_id_manipulation(
-    manipulation: &Box<StringManipulation>,
+    manipulation: &StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -373,7 +373,7 @@ fn flatten_single_level_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<
 
 #[inline]
 fn flatten_single_level_no_id_manipulation(
-    manipulation: &Box<StringManipulation>,
+    manipulation: &StringManipulation,
     id: &str,
     from: &Value,
     to: &mut Map<String, Value>,
@@ -397,7 +397,7 @@ fn flatten_single_level_no_id_manipulation(
 
 #[inline]
 fn flatten_single_level_with_id_manipulation(
-    manipulation: &Box<StringManipulation>,
+    manipulation: &StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -432,8 +432,8 @@ fn flatten(
     if recursive {
         match manipulation {
             Some(man) => match id.len() {
-                0 => flatten_recursive_no_id_manipulation(man, sep, id, from, to),
-                _ => flatten_recursive_with_id_manipulation(man, sep, id, from, to),
+                0 => flatten_recursive_no_id_manipulation(man.as_ref(), sep, id, from, to),
+                _ => flatten_recursive_with_id_manipulation(man.as_ref(), sep, id, from, to),
             },
             None => match id.len() {
                 0 => flatten_recursive_no_id(sep, id, from, to),
@@ -443,8 +443,8 @@ fn flatten(
     } else {
         match manipulation {
             Some(man) => match id.len() {
-                0 => flatten_single_level_no_id_manipulation(man, id, from, to),
-                _ => flatten_single_level_with_id_manipulation(man, sep, id, from, to),
+                0 => flatten_single_level_no_id_manipulation(man.as_ref(), id, from, to),
+                _ => flatten_single_level_with_id_manipulation(man.as_ref(), sep, id, from, to),
             },
             None => match id.len() {
                 0 => flatten_single_level_no_id(id, from, to),
@@ -628,7 +628,7 @@ pub(crate) enum Destination {
         id: Option<String>,
         prefix: String,
         separator: String,
-        manipulation: Option<Box<StringManipulation>>,
+        manipulation: Option<Box<dyn StringManipulation>>,
         recursive: bool,
     },
     FlattenArray {
@@ -636,7 +636,7 @@ pub(crate) enum Destination {
         id: String,
         prefix: String,
         separator: String,
-        manipulation: Option<Box<StringManipulation>>,
+        manipulation: Option<Box<dyn StringManipulation>>,
         index: usize,
         recursive: bool,
     },
