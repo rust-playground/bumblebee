@@ -20,7 +20,7 @@ pub struct FlattenOps<'a> {
     pub recursive: bool,
     pub prefix: Option<&'a str>,
     pub separator: Option<&'a str>,
-    pub manipulation: Option<Box<StringManipulation>>,
+    pub manipulation: Option<Box<dyn StringManipulation>>,
 }
 
 ///
@@ -41,7 +41,7 @@ pub enum Mapping<'a> {
         to: Cow<'a, str>,
         prefix: Option<Cow<'a, str>>,
         separator: Option<Cow<'a, str>>,
-        manipulation: Option<Box<StringManipulation>>,
+        manipulation: Option<Box<dyn StringManipulation>>,
         recursive: bool,
     },
 }
@@ -209,7 +209,7 @@ fn flatten_recursive_no_id(sep: &str, id: &str, from: &Value, to: &mut Map<Strin
 
 #[inline]
 fn flatten_recursive_no_id_manipulation(
-    manipulation: &StringManipulation,
+    manipulation: &dyn StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -290,7 +290,7 @@ fn flatten_recursive_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<Str
 }
 
 fn flatten_recursive_with_id_manipulation(
-    manipulation: &StringManipulation,
+    manipulation: &dyn StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -373,7 +373,7 @@ fn flatten_single_level_with_id(sep: &str, id: &str, from: &Value, to: &mut Map<
 
 #[inline]
 fn flatten_single_level_no_id_manipulation(
-    manipulation: &StringManipulation,
+    manipulation: &dyn StringManipulation,
     id: &str,
     from: &Value,
     to: &mut Map<String, Value>,
@@ -397,7 +397,7 @@ fn flatten_single_level_no_id_manipulation(
 
 #[inline]
 fn flatten_single_level_with_id_manipulation(
-    manipulation: &StringManipulation,
+    manipulation: &dyn StringManipulation,
     sep: &str,
     id: &str,
     from: &Value,
@@ -422,7 +422,7 @@ fn flatten_single_level_with_id_manipulation(
 
 #[inline]
 fn flatten(
-    manipulation: &Option<Box<StringManipulation>>,
+    manipulation: &Option<Box<dyn StringManipulation>>,
     sep: &str,
     id: &str,
     from: &Value,
