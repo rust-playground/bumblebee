@@ -1,4 +1,4 @@
-# Serde JSON &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+# Bumblebee &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
 [Build Status]: https://api.travis-ci.org/rust-playground/bumblebee.svg?branch=master
 [travis]: https://travis-ci.org/rust-playground/bumblebee
