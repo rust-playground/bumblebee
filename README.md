@@ -1,3 +1,5 @@
+Archived please see [Proteus](https://github.com/rust-playground/proteus) for a btter library.
+
 # Bumblebee &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
 [Build Status]: https://api.travis-ci.org/rust-playground/bumblebee.svg?branch=master
